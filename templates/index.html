@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DocGen — Generador de Documentación</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #242736;
+      --border: #2e3144;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --success: #22c55e;
+      --error: #ef4444;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--surface);
+    }
+
+    header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+    header span { color: var(--accent); }
+    header p { font-size: 0.8rem; color: var(--muted); margin-left: auto; }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 0;
+    }
+
+    /* ── Sidebar (form) ── */
+    .sidebar {
+      border-right: 1px solid var(--border);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      overflow-y: auto;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 0.4rem; }
+    label { font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    input, textarea, select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.875rem;
+      padding: 0.6rem 0.75rem;
+      width: 100%;
+      transition: border-color 0.15s;
+      font-family: inherit;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    textarea { resize: vertical; min-height: 80px; }
+
+    .hint { font-size: 0.72rem; color: var(--muted); }
+
+    .btn {
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 0.75rem 1rem;
+      transition: background 0.15s, opacity 0.15s;
+      width: 100%;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); background: var(--surface2); }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0.25rem 0; }
+
+    /* ── Output panel ── */
+    .output-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .output-toolbar {
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--surface);
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .status-dot.active { background: var(--accent); animation: pulse 1.2s infinite; }
+    .status-dot.done { background: var(--success); animation: none; }
+    .status-dot.error { background: var(--error); animation: none; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    #status-text { flex: 1; }
+
+    .stats { display: flex; gap: 1rem; }
+    .stat { font-size: 0.72rem; color: var(--muted); }
+    .stat strong { color: var(--text); }
+
+    #output-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 2rem;
+    }
+
+    #output-content {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--text);
+    }
+
+    .placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 0.75rem;
+      color: var(--muted);
+      font-size: 0.875rem;
+      text-align: center;
+      padding: 2rem;
+    }
+    .placeholder svg { opacity: 0.3; }
+
+    /* Markdown-like rendering inside pre */
+    #output-content .md-h1 { color: var(--accent-hover); font-size: 1.1em; font-weight: 700; }
+    #output-content .md-h2 { color: #a5b4fc; font-size: 1em; font-weight: 700; }
+    #output-content .md-h3 { color: #c7d2fe; font-weight: 600; }
+    #output-content .md-bold { font-weight: 700; color: #f1f5f9; }
+    #output-content .md-code { background: var(--surface2); border-radius: 3px; padding: 0 3px; }
+
+    /* Error box */
+    .error-box {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+      color: #fca5a5;
+    }
+
+    /* Analysis metadata pills */
+    .meta-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .pill {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-size: 0.72rem;
+      padding: 0.2rem 0.6rem;
+      color: var(--muted);
+    }
+    .pill strong { color: var(--text); }
+
+    /* Provider cards */
+    .provider-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
+      padding: 0.65rem 0.5rem;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .provider-card:has(input:checked) {
+      border-color: var(--accent);
+      background: rgba(99,102,241,0.08);
+    }
+    .provider-card:hover { border-color: var(--accent-hover); }
+    .provider-logo { font-size: 1.2rem; line-height: 1; }
+    .provider-name { font-size: 0.82rem; font-weight: 700; }
+    .provider-sub  { font-size: 0.68rem; color: var(--muted); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <line x1="16" y1="13" x2="8" y2="13"/>
+    <line x1="16" y1="17" x2="8" y2="17"/>
+    <polyline points="10 9 9 9 8 9"/>
+  </svg>
+  <h1>Doc<span>Gen</span></h1>
+  <p>Generador de documentación de servicios backend</p>
+</header>
+
+<main>
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="field">
+      <label>URL de la interfaz web</label>
+      <input type="url" id="web-url" placeholder="https://ejemplo.com/app" autocomplete="off" />
+      <span class="hint">La página que sirve como punto de entrada del servicio.</span>
+    </div>
+
+    <div class="field">
+      <label>Connection string de la base de datos</label>
+      <input type="text" id="db-conn"
+        placeholder="postgresql://user:pass@host:5432/db"
+        autocomplete="off" />
+      <span class="hint">
+        Ejemplos: <code>sqlite:///app.db</code> · <code>mysql+pymysql://user:pass@host/db</code>
+      </span>
+    </div>
+
+    <div class="field">
+      <label>Proveedor de IA</label>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+        <label class="provider-card" id="card-anthropic">
+          <input type="radio" name="provider" value="anthropic" checked hidden />
+          <span class="provider-logo">✦</span>
+          <span class="provider-name">Claude</span>
+          <span class="provider-sub">Anthropic</span>
+        </label>
+        <label class="provider-card" id="card-gemini">
+          <input type="radio" name="provider" value="gemini" hidden />
+          <span class="provider-logo">◆</span>
+          <span class="provider-name">Gemini</span>
+          <span class="provider-sub">Google</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="field" id="model-field">
+      <label>Modelo <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
+      <select id="model-select">
+        <option value="" data-provider="anthropic" selected>claude-opus-4-7 (default)</option>
+        <option value="claude-opus-4-6" data-provider="anthropic">claude-opus-4-6</option>
+        <option value="claude-sonnet-4-6" data-provider="anthropic">claude-sonnet-4-6</option>
+        <option value="claude-haiku-4-5" data-provider="anthropic">claude-haiku-4-5</option>
+        <option value="" data-provider="gemini" style="display:none">gemini-2.5-pro-preview-05-06 (default)</option>
+        <option value="gemini-2.5-flash-preview-05-20" data-provider="gemini" style="display:none">gemini-2.5-flash-preview-05-20</option>
+        <option value="gemini-2.0-flash" data-provider="gemini" style="display:none">gemini-2.0-flash</option>
+        <option value="gemini-1.5-pro" data-provider="gemini" style="display:none">gemini-1.5-pro</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Contexto adicional <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
+      <textarea id="extra-context" placeholder="Ej: sistema de facturación, integra con Stripe, usa autenticación JWT…"></textarea>
+    </div>
+
+    <hr class="divider" />
+
+    <button class="btn" id="btn-generate">
+      Generar documentación
+    </button>
+
+    <button class="btn btn-secondary" id="btn-analyze" style="font-size:0.8rem; padding:0.55rem 1rem;">
+      Solo analizar (sin generar)
+    </button>
+
+    <button class="btn btn-secondary" id="btn-copy" style="font-size:0.8rem; padding:0.55rem 1rem;" disabled>
+      Copiar al portapapeles
+    </button>
+
+    <hr class="divider" />
+
+    <div id="analysis-meta" style="display:none;">
+      <p style="font-size:0.75rem; color:var(--muted); margin-bottom:0.5rem;">Análisis detectado</p>
+      <div class="meta-pills" id="meta-pills"></div>
+    </div>
+  </aside>
+
+  <!-- ── Output panel ── -->
+  <section class="output-panel">
+    <div class="output-toolbar">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">Listo para generar</span>
+      <div class="stats" id="stats" style="display:none;">
+        <span class="stat">Chars: <strong id="stat-chars">0</strong></span>
+        <span class="stat">Tiempo: <strong id="stat-time">0s</strong></span>
+      </div>
+    </div>
+
+    <div id="output-area">
+      <div class="placeholder" id="placeholder">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M3 9h18M9 21V9"/>
+        </svg>
+        <p>Ingresá la URL y el connection string<br>para generar la documentación del servicio.</p>
+      </div>
+      <pre id="output-content" style="display:none;"></pre>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  const btnGenerate  = $('btn-generate');
+  const btnAnalyze   = $('btn-analyze');
+  const btnCopy      = $('btn-copy');
+  const statusDot    = $('status-dot');
+  const statusText   = $('status-text');
+  const outputEl     = $('output-content');
+  const placeholder  = $('placeholder');
+  const statChars    = $('stat-chars');
+  const statTime     = $('stat-time');
+  const statsEl      = $('stats');
+  const metaDiv      = $('analysis-meta');
+  const metaPills    = $('meta-pills');
+  const modelSelect  = $('model-select');
+
+  // ── Provider switching ─────────────────────────────────────────────────
+  function getProvider() {
+    return document.querySelector('input[name="provider"]:checked')?.value || 'anthropic';
+  }
+
+  function syncModelOptions() {
+    const prov = getProvider();
+    Array.from(modelSelect.options).forEach(opt => {
+      const forProvider = opt.dataset.provider;
+      opt.style.display = (!forProvider || forProvider === prov) ? '' : 'none';
+    });
+    // select first visible option
+    const first = Array.from(modelSelect.options).find(o => o.style.display !== 'none');
+    if (first) modelSelect.value = first.value;
+  }
+
+  document.querySelectorAll('input[name="provider"]').forEach(radio => {
+    radio.addEventListener('change', syncModelOptions);
+  });
+
+  let startTime = null;
+  let timerInterval = null;
+  let generatedText = '';
+  let currentSource = null;
+
+  function setStatus(state, msg) {
+    statusDot.className = 'status-dot' + (state ? ' ' + state : '');
+    statusText.textContent = msg;
+  }
+
+  function showOutput(text) {
+    placeholder.style.display = 'none';
+    outputEl.style.display = 'block';
+    outputEl.textContent = text;
+    statChars.textContent = text.length.toLocaleString('es-AR');
+  }
+
+  function appendOutput(chunk) {
+    generatedText += chunk;
+    outputEl.textContent = generatedText;
+    statChars.textContent = generatedText.length.toLocaleString('es-AR');
+    // auto-scroll
+    const area = $('output-area');
+    area.scrollTop = area.scrollHeight;
+  }
+
+  function showMeta(data) {
+    metaPills.innerHTML = '';
+    const add = (label, val) => {
+      const p = document.createElement('span');
+      p.className = 'pill';
+      p.innerHTML = `${label}: <strong>${val}</strong>`;
+      metaPills.appendChild(p);
+    };
+    if (data.tables !== undefined) add('Tablas', data.tables);
+    if (data.forms  !== undefined) add('Formularios', data.forms);
+    metaDiv.style.display = 'block';
+  }
+
+  function startTimer() {
+    startTime = Date.now();
+    statsEl.style.display = 'flex';
+    timerInterval = setInterval(() => {
+      statTime.textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+    }, 100);
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+    if (startTime) {
+      statTime.textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+    }
+  }
+
+  function lockForm(locked) {
+    btnGenerate.disabled = locked;
+    btnAnalyze.disabled  = locked;
+  }
+
+  // ── Generate (SSE streaming) ─────────────────────────────────────────────
+  btnGenerate.addEventListener('click', async () => {
+    const webUrl   = $('web-url').value.trim();
+    const dbConn   = $('db-conn').value.trim();
+    const extra    = $('extra-context').value.trim();
+    const provider = getProvider();
+    const model    = modelSelect.value || undefined;
+
+    if (!webUrl || !dbConn) {
+      setStatus('error', 'Completá la URL y el connection string.');
+      return;
+    }
+
+    if (currentSource) { currentSource.close(); currentSource = null; }
+
+    generatedText = '';
+    placeholder.style.display = 'none';
+    outputEl.style.display = 'block';
+    outputEl.textContent = '';
+    btnCopy.disabled = true;
+    metaDiv.style.display = 'none';
+    lockForm(true);
+    setStatus('active', 'Conectando…');
+    startTimer();
+
+    try {
+      const body = { web_url: webUrl, db_connection: dbConn, extra_context: extra, provider };
+      if (model) body.model = model;
+
+      const res = await fetch('/api/generate/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || res.statusText);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      setStatus('active', 'Analizando interfaz y base de datos…');
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // keep incomplete line
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (!raw) continue;
+
+          let evt;
+          try { evt = JSON.parse(raw); } catch { continue; }
+
+          if (evt.error) {
+            stopTimer();
+            setStatus('error', 'Error: ' + evt.error);
+            outputEl.textContent = '❌ Error: ' + evt.error;
+            lockForm(false);
+            return;
+          }
+
+          if (evt.event === 'analysis_complete') {
+            showMeta(evt);
+            const providerLabel = evt.provider === 'gemini' ? 'Gemini' : 'Claude';
+            setStatus('active', `Generando con ${providerLabel} · ${evt.model || ''} (${evt.tables} tablas, ${evt.forms} formularios)…`);
+          } else if (evt.event === 'chunk') {
+            appendOutput(evt.text);
+          } else if (evt.event === 'done') {
+            stopTimer();
+            setStatus('done', `Documentación generada — ${generatedText.length.toLocaleString('es-AR')} caracteres`);
+            btnCopy.disabled = false;
+            lockForm(false);
+          }
+        }
+      }
+
+    } catch (err) {
+      stopTimer();
+      setStatus('error', 'Error: ' + err.message);
+      outputEl.textContent = generatedText || ('❌ ' + err.message);
+      lockForm(false);
+    }
+  });
+
+  // ── Analyze only ─────────────────────────────────────────────────────────
+  btnAnalyze.addEventListener('click', async () => {
+    const webUrl = $('web-url').value.trim();
+    const dbConn = $('db-conn').value.trim();
+
+    if (!webUrl && !dbConn) {
+      setStatus('error', 'Ingresá al menos una URL o un connection string.');
+      return;
+    }
+
+    lockForm(true);
+    generatedText = '';
+    placeholder.style.display = 'none';
+    outputEl.style.display = 'block';
+    outputEl.textContent = '';
+    metaDiv.style.display = 'none';
+    startTimer();
+    setStatus('active', 'Analizando…');
+
+    const results = [];
+
+    try {
+      if (webUrl) {
+        setStatus('active', 'Analizando interfaz web…');
+        const r = await fetch('/api/analyze/web?url=' + encodeURIComponent(webUrl), { method: 'POST' });
+        const d = await r.json();
+        if (d.error) throw new Error(d.error);
+        results.push('=== ANÁLISIS WEB ===\n' + JSON.stringify(d, null, 2));
+        showMeta({ forms: d.forms?.length ?? 0 });
+      }
+
+      if (dbConn) {
+        setStatus('active', 'Analizando base de datos…');
+        const r = await fetch('/api/analyze/db?connection=' + encodeURIComponent(dbConn), { method: 'POST' });
+        const d = await r.json();
+        if (d.error) throw new Error(d.error);
+        results.push('=== ESQUEMA DE BD ===\n' + JSON.stringify(d, null, 2));
+        const meta = metaPills.innerHTML ? {} : {};
+        showMeta({ tables: d.tables?.length ?? 0 });
+      }
+
+      generatedText = results.join('\n\n');
+      showOutput(generatedText);
+      stopTimer();
+      setStatus('done', 'Análisis completo');
+      btnCopy.disabled = false;
+
+    } catch (err) {
+      stopTimer();
+      setStatus('error', 'Error: ' + err.message);
+      outputEl.textContent = '❌ ' + err.message;
+    } finally {
+      lockForm(false);
+    }
+  });
+
+  // ── Copy ─────────────────────────────────────────────────────────────────
+  btnCopy.addEventListener('click', async () => {
+    if (!generatedText) return;
+    try {
+      await navigator.clipboard.writeText(generatedText);
+      const orig = btnCopy.textContent;
+      btnCopy.textContent = '✓ Copiado';
+      setTimeout(() => { btnCopy.textContent = orig; }, 1500);
+    } catch {
+      btnCopy.textContent = 'Error al copiar';
+    }
+  });
+</script>
+</body>
+</html>
