@@ -12,9 +12,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic_settings import BaseSettings
 
-from docgen.analyzers import analyze_database, analyze_web_interface
-from docgen.generators import generate_documentation, generate_documentation_stream
-from docgen.models import GenerationRequest, GenerationResult
+from docgen.analyzers import analyze_database, analyze_request, analyze_web_interface
+from docgen.generators import (
+    generate_documentation,
+    generate_documentation_stream,
+    generate_request_documentation_stream,
+)
+from docgen.models import GenerationRequest, GenerationResult, RequestGenerationRequest
 
 
 # ── Configuración ────────────────────────────────────────────────────────────
@@ -131,6 +135,64 @@ async def generate_stream(req: GenerationRequest):
 
         loop = asyncio.get_event_loop()
         gen = generate_documentation_stream(web, db, model, req.extra_context, provider)
+
+        def _next_chunk():
+            try:
+                return next(gen)
+            except StopIteration:
+                return None
+
+        while True:
+            chunk = await loop.run_in_executor(None, _next_chunk)
+            if chunk is None:
+                break
+            yield f"data: {json.dumps({'event': 'chunk', 'text': chunk})}\n\n"
+
+        yield f"data: {json.dumps({'event': 'done'})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.post("/api/analyze/request")
+async def analyze_request_endpoint(req: RequestGenerationRequest):
+    """Analiza un request HTTP contra el schema de BD y devuelve el impacto detectado."""
+    try:
+        db = await asyncio.to_thread(analyze_database, req.db_connection)
+    except Exception as exc:
+        return JSONResponse(status_code=400, content={"error": f"DB error: {exc}"})
+
+    result = analyze_request(req.http_request, db)
+    return result.model_dump()
+
+
+@app.post("/api/generate/request/stream")
+async def generate_request_stream(req: RequestGenerationRequest):
+    """Analiza un request HTTP y genera la propuesta de implementación con streaming SSE."""
+
+    async def event_stream():
+        provider, model = _resolve_model_and_configure(
+            GenerationRequest(
+                web_url="http://placeholder",
+                db_connection=req.db_connection,
+                provider=req.provider,
+                model=req.model,
+            )
+        )
+
+        try:
+            db = await asyncio.to_thread(analyze_database, req.db_connection)
+        except Exception as exc:
+            yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+            return
+
+        request_analysis = analyze_request(req.http_request, db)
+
+        yield f"data: {json.dumps({'event': 'analysis_complete', 'tables': len(db.tables), 'impacted': len(request_analysis.impacted_tables), 'matched_columns': len(request_analysis.matched_columns), 'model': model, 'provider': provider})}\n\n"
+
+        loop = asyncio.get_event_loop()
+        gen = generate_request_documentation_stream(
+            req.http_request, request_analysis, db, model, req.extra_context, provider
+        )
 
         def _next_chunk():
             try:

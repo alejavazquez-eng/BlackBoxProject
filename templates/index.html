@@ -230,6 +230,65 @@
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.25rem;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.6rem 1rem;
+      transition: color 0.15s, border-color 0.15s;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      width: auto;
+    }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .tab-btn:hover:not(.active) { color: var(--text); }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: contents; }
+
+    /* Method selector */
+    .method-select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.875rem;
+      font-weight: 700;
+      padding: 0.6rem 0.75rem;
+      width: 100%;
+    }
+    .method-select option[value="GET"]    { color: #22c55e; }
+    .method-select option[value="POST"]   { color: #6366f1; }
+    .method-select option[value="PUT"]    { color: #f59e0b; }
+    .method-select option[value="PATCH"]  { color: #f59e0b; }
+    .method-select option[value="DELETE"] { color: #ef4444; }
+
+    .method-row { display: grid; grid-template-columns: 120px 1fr; gap: 0.5rem; }
+
+    /* Impact pills */
+    .impact-pill {
+      background: rgba(99,102,241,0.12);
+      border: 1px solid rgba(99,102,241,0.3);
+      border-radius: 100px;
+      font-size: 0.72rem;
+      padding: 0.2rem 0.6rem;
+      color: #a5b4fc;
+    }
   </style>
 </head>
 <body>
@@ -249,74 +308,158 @@
 <main>
   <!-- ── Sidebar ── -->
   <aside class="sidebar">
-    <div class="field">
-      <label>URL de la interfaz web</label>
-      <input type="url" id="web-url" placeholder="https://ejemplo.com/app" autocomplete="off" />
-      <span class="hint">La página que sirve como punto de entrada del servicio.</span>
+
+    <!-- Tab switcher -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tab-system">Documentar Sistema</button>
+      <button class="tab-btn" data-tab="tab-request">Analizar Request</button>
     </div>
 
-    <div class="field">
-      <label>Connection string de la base de datos</label>
-      <input type="text" id="db-conn"
-        placeholder="postgresql://user:pass@host:5432/db"
-        autocomplete="off" />
-      <span class="hint">
-        Ejemplos: <code>sqlite:///app.db</code> · <code>mysql+pymysql://user:pass@host/db</code>
-      </span>
-    </div>
-
-    <div class="field">
-      <label>Proveedor de IA</label>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
-        <label class="provider-card" id="card-anthropic">
-          <input type="radio" name="provider" value="anthropic" checked hidden />
-          <span class="provider-logo">✦</span>
-          <span class="provider-name">Claude</span>
-          <span class="provider-sub">Anthropic</span>
-        </label>
-        <label class="provider-card" id="card-gemini">
-          <input type="radio" name="provider" value="gemini" hidden />
-          <span class="provider-logo">◆</span>
-          <span class="provider-name">Gemini</span>
-          <span class="provider-sub">Google</span>
-        </label>
+    <!-- ── Tab: Documentar Sistema ── -->
+    <div class="tab-pane active" id="tab-system">
+      <div class="field">
+        <label>URL de la interfaz web</label>
+        <input type="url" id="web-url" placeholder="https://ejemplo.com/app" autocomplete="off" />
+        <span class="hint">La página que sirve como punto de entrada del servicio.</span>
       </div>
+
+      <div class="field">
+        <label>Connection string de la base de datos</label>
+        <input type="text" id="db-conn"
+          placeholder="postgresql://user:pass@host:5432/db"
+          autocomplete="off" />
+        <span class="hint">
+          Ejemplos: <code>sqlite:///app.db</code> · <code>mysql+pymysql://user:pass@host/db</code>
+        </span>
+      </div>
+
+      <div class="field">
+        <label>Proveedor de IA</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+          <label class="provider-card" id="card-anthropic">
+            <input type="radio" name="provider" value="anthropic" checked hidden />
+            <span class="provider-logo">✦</span>
+            <span class="provider-name">Claude</span>
+            <span class="provider-sub">Anthropic</span>
+          </label>
+          <label class="provider-card" id="card-gemini">
+            <input type="radio" name="provider" value="gemini" hidden />
+            <span class="provider-logo">◆</span>
+            <span class="provider-name">Gemini</span>
+            <span class="provider-sub">Google</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field" id="model-field">
+        <label>Modelo <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
+        <select id="model-select">
+          <option value="" data-provider="anthropic" selected>claude-opus-4-7 (default)</option>
+          <option value="claude-opus-4-6" data-provider="anthropic">claude-opus-4-6</option>
+          <option value="claude-sonnet-4-6" data-provider="anthropic">claude-sonnet-4-6</option>
+          <option value="claude-haiku-4-5" data-provider="anthropic">claude-haiku-4-5</option>
+          <option value="" data-provider="gemini" style="display:none">gemini-2.5-pro-preview-05-06 (default)</option>
+          <option value="gemini-2.5-flash-preview-05-20" data-provider="gemini" style="display:none">gemini-2.5-flash-preview-05-20</option>
+          <option value="gemini-2.0-flash" data-provider="gemini" style="display:none">gemini-2.0-flash</option>
+          <option value="gemini-1.5-pro" data-provider="gemini" style="display:none">gemini-1.5-pro</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Contexto adicional <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
+        <textarea id="extra-context" placeholder="Ej: sistema de facturación, integra con Stripe, usa autenticación JWT…"></textarea>
+      </div>
+
+      <hr class="divider" />
+
+      <button class="btn" id="btn-generate">Generar documentación</button>
+
+      <button class="btn btn-secondary" id="btn-analyze" style="font-size:0.8rem; padding:0.55rem 1rem;">
+        Solo analizar (sin generar)
+      </button>
     </div>
 
-    <div class="field" id="model-field">
-      <label>Modelo <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
-      <select id="model-select">
-        <option value="" data-provider="anthropic" selected>claude-opus-4-7 (default)</option>
-        <option value="claude-opus-4-6" data-provider="anthropic">claude-opus-4-6</option>
-        <option value="claude-sonnet-4-6" data-provider="anthropic">claude-sonnet-4-6</option>
-        <option value="claude-haiku-4-5" data-provider="anthropic">claude-haiku-4-5</option>
-        <option value="" data-provider="gemini" style="display:none">gemini-2.5-pro-preview-05-06 (default)</option>
-        <option value="gemini-2.5-flash-preview-05-20" data-provider="gemini" style="display:none">gemini-2.5-flash-preview-05-20</option>
-        <option value="gemini-2.0-flash" data-provider="gemini" style="display:none">gemini-2.0-flash</option>
-        <option value="gemini-1.5-pro" data-provider="gemini" style="display:none">gemini-1.5-pro</option>
-      </select>
+    <!-- ── Tab: Analizar Request ── -->
+    <div class="tab-pane" id="tab-request">
+      <div class="field">
+        <label>Método y Path</label>
+        <div class="method-row">
+          <select id="req-method" class="method-select">
+            <option value="POST">POST</option>
+            <option value="GET">GET</option>
+            <option value="PUT">PUT</option>
+            <option value="PATCH">PATCH</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+          <input type="text" id="req-path" placeholder="/api/usuarios" autocomplete="off" />
+        </div>
+        <span class="hint">Path del endpoint que hace el frontend.</span>
+      </div>
+
+      <div class="field">
+        <label>Body (JSON)</label>
+        <textarea id="req-body" style="min-height:120px; font-family:var(--font-mono); font-size:0.8rem;"
+          placeholder='{"nombre": "Juan", "email": "juan@ejemplo.com", "rol_id": 2}'></textarea>
+        <span class="hint">Pegá el body JSON que envía el frontend.</span>
+      </div>
+
+      <div class="field">
+        <label>Query params <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
+        <input type="text" id="req-query" placeholder="page=1&limit=20&estado=activo" autocomplete="off" />
+        <span class="hint">En formato key=value separados por &amp;</span>
+      </div>
+
+      <div class="field">
+        <label>Headers <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
+        <textarea id="req-headers" style="min-height:60px; font-family:var(--font-mono); font-size:0.8rem;"
+          placeholder="Authorization: Bearer token123&#10;X-Tenant-Id: 42"></textarea>
+        <span class="hint">Un header por línea en formato Nombre: Valor</span>
+      </div>
+
+      <div class="field">
+        <label>Connection string de la base de datos</label>
+        <input type="text" id="req-db-conn"
+          placeholder="postgresql://user:pass@host:5432/db"
+          autocomplete="off" />
+      </div>
+
+      <div class="field">
+        <label>Proveedor de IA</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+          <label class="provider-card" id="req-card-anthropic">
+            <input type="radio" name="req-provider" value="anthropic" checked hidden />
+            <span class="provider-logo">✦</span>
+            <span class="provider-name">Claude</span>
+            <span class="provider-sub">Anthropic</span>
+          </label>
+          <label class="provider-card" id="req-card-gemini">
+            <input type="radio" name="req-provider" value="gemini" hidden />
+            <span class="provider-logo">◆</span>
+            <span class="provider-name">Gemini</span>
+            <span class="provider-sub">Google</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Contexto adicional <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
+        <textarea id="req-extra" placeholder="Ej: usa JWT, sistema multitenant, el usuario ya está autenticado…"></textarea>
+      </div>
+
+      <hr class="divider" />
+
+      <button class="btn" id="btn-req-generate">Generar implementación</button>
+
+      <button class="btn btn-secondary" id="btn-req-analyze" style="font-size:0.8rem; padding:0.55rem 1rem;">
+        Solo analizar impacto en BD
+      </button>
     </div>
 
-    <div class="field">
-      <label>Contexto adicional <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
-      <textarea id="extra-context" placeholder="Ej: sistema de facturación, integra con Stripe, usa autenticación JWT…"></textarea>
-    </div>
-
+    <!-- Shared bottom controls -->
     <hr class="divider" />
-
-    <button class="btn" id="btn-generate">
-      Generar documentación
-    </button>
-
-    <button class="btn btn-secondary" id="btn-analyze" style="font-size:0.8rem; padding:0.55rem 1rem;">
-      Solo analizar (sin generar)
-    </button>
-
     <button class="btn btn-secondary" id="btn-copy" style="font-size:0.8rem; padding:0.55rem 1rem;" disabled>
       Copiar al portapapeles
     </button>
-
-    <hr class="divider" />
 
     <div id="analysis-meta" style="display:none;">
       <p style="font-size:0.75rem; color:var(--muted); margin-bottom:0.5rem;">Análisis detectado</p>
@@ -351,21 +494,33 @@
 <script>
   const $ = id => document.getElementById(id);
 
-  const btnGenerate  = $('btn-generate');
-  const btnAnalyze   = $('btn-analyze');
-  const btnCopy      = $('btn-copy');
-  const statusDot    = $('status-dot');
-  const statusText   = $('status-text');
-  const outputEl     = $('output-content');
-  const placeholder  = $('placeholder');
-  const statChars    = $('stat-chars');
-  const statTime     = $('stat-time');
-  const statsEl      = $('stats');
-  const metaDiv      = $('analysis-meta');
-  const metaPills    = $('meta-pills');
-  const modelSelect  = $('model-select');
+  const btnGenerate     = $('btn-generate');
+  const btnAnalyze      = $('btn-analyze');
+  const btnReqGenerate  = $('btn-req-generate');
+  const btnReqAnalyze   = $('btn-req-analyze');
+  const btnCopy         = $('btn-copy');
+  const statusDot       = $('status-dot');
+  const statusText      = $('status-text');
+  const outputEl        = $('output-content');
+  const placeholder     = $('placeholder');
+  const statChars       = $('stat-chars');
+  const statTime        = $('stat-time');
+  const statsEl         = $('stats');
+  const metaDiv         = $('analysis-meta');
+  const metaPills       = $('meta-pills');
+  const modelSelect     = $('model-select');
 
-  // ── Provider switching ─────────────────────────────────────────────────
+  // ── Tab switching ──────────────────────────────────────────────────────
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      $(btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── Provider switching (system tab) ───────────────────────────────────
   function getProvider() {
     return document.querySelector('input[name="provider"]:checked')?.value || 'anthropic';
   }
@@ -376,7 +531,6 @@
       const forProvider = opt.dataset.provider;
       opt.style.display = (!forProvider || forProvider === prov) ? '' : 'none';
     });
-    // select first visible option
     const first = Array.from(modelSelect.options).find(o => o.style.display !== 'none');
     if (first) modelSelect.value = first.value;
   }
@@ -384,6 +538,10 @@
   document.querySelectorAll('input[name="provider"]').forEach(radio => {
     radio.addEventListener('change', syncModelOptions);
   });
+
+  function getReqProvider() {
+    return document.querySelector('input[name="req-provider"]:checked')?.value || 'anthropic';
+  }
 
   let startTime = null;
   let timerInterval = null;
@@ -406,21 +564,22 @@
     generatedText += chunk;
     outputEl.textContent = generatedText;
     statChars.textContent = generatedText.length.toLocaleString('es-AR');
-    // auto-scroll
     const area = $('output-area');
     area.scrollTop = area.scrollHeight;
   }
 
   function showMeta(data) {
     metaPills.innerHTML = '';
-    const add = (label, val) => {
+    const add = (label, val, cls = 'pill') => {
       const p = document.createElement('span');
-      p.className = 'pill';
+      p.className = cls;
       p.innerHTML = `${label}: <strong>${val}</strong>`;
       metaPills.appendChild(p);
     };
-    if (data.tables !== undefined) add('Tablas', data.tables);
-    if (data.forms  !== undefined) add('Formularios', data.forms);
+    if (data.tables    !== undefined) add('Tablas', data.tables);
+    if (data.forms     !== undefined) add('Formularios', data.forms);
+    if (data.impacted  !== undefined) add('Tablas impactadas', data.impacted, 'impact-pill');
+    if (data.matched_columns !== undefined) add('Columnas mapeadas', data.matched_columns, 'impact-pill');
     metaDiv.style.display = 'block';
   }
 
@@ -434,17 +593,61 @@
 
   function stopTimer() {
     clearInterval(timerInterval);
-    if (startTime) {
-      statTime.textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+    if (startTime) statTime.textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+  }
+
+  function lockAll(locked) {
+    [btnGenerate, btnAnalyze, btnReqGenerate, btnReqAnalyze].forEach(b => { if (b) b.disabled = locked; });
+  }
+
+  // ── Shared SSE stream consumer ────────────────────────────────────────
+  async function consumeStream(url, bodyObj, onMeta) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyObj),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || res.statusText);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (!raw) continue;
+        let evt;
+        try { evt = JSON.parse(raw); } catch { continue; }
+
+        if (evt.error) { throw new Error(evt.error); }
+
+        if (evt.event === 'analysis_complete') {
+          showMeta(evt);
+          onMeta(evt);
+        } else if (evt.event === 'chunk') {
+          appendOutput(evt.text);
+        } else if (evt.event === 'done') {
+          stopTimer();
+          setStatus('done', `Generado — ${generatedText.length.toLocaleString('es-AR')} caracteres`);
+          btnCopy.disabled = false;
+          lockAll(false);
+        }
+      }
     }
   }
 
-  function lockForm(locked) {
-    btnGenerate.disabled = locked;
-    btnAnalyze.disabled  = locked;
-  }
-
-  // ── Generate (SSE streaming) ─────────────────────────────────────────────
+  // ── Generate system docs (SSE streaming) ─────────────────────────────
   btnGenerate.addEventListener('click', async () => {
     const webUrl   = $('web-url').value.trim();
     const dbConn   = $('db-conn').value.trim();
@@ -452,12 +655,7 @@
     const provider = getProvider();
     const model    = modelSelect.value || undefined;
 
-    if (!webUrl || !dbConn) {
-      setStatus('error', 'Completá la URL y el connection string.');
-      return;
-    }
-
-    if (currentSource) { currentSource.close(); currentSource = null; }
+    if (!webUrl || !dbConn) { setStatus('error', 'Completá la URL y el connection string.'); return; }
 
     generatedText = '';
     placeholder.style.display = 'none';
@@ -465,89 +663,33 @@
     outputEl.textContent = '';
     btnCopy.disabled = true;
     metaDiv.style.display = 'none';
-    lockForm(true);
-    setStatus('active', 'Conectando…');
+    lockAll(true);
+    setStatus('active', 'Analizando interfaz y base de datos…');
     startTimer();
 
+    const bodyObj = { web_url: webUrl, db_connection: dbConn, extra_context: extra, provider };
+    if (model) bodyObj.model = model;
+
     try {
-      const body = { web_url: webUrl, db_connection: dbConn, extra_context: extra, provider };
-      if (model) body.model = model;
-
-      const res = await fetch('/api/generate/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+      await consumeStream('/api/generate/stream', bodyObj, evt => {
+        const providerLabel = evt.provider === 'gemini' ? 'Gemini' : 'Claude';
+        setStatus('active', `Generando con ${providerLabel} · ${evt.model || ''} (${evt.tables} tablas)…`);
       });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(err.error || res.statusText);
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      setStatus('active', 'Analizando interfaz y base de datos…');
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop(); // keep incomplete line
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const raw = line.slice(6).trim();
-          if (!raw) continue;
-
-          let evt;
-          try { evt = JSON.parse(raw); } catch { continue; }
-
-          if (evt.error) {
-            stopTimer();
-            setStatus('error', 'Error: ' + evt.error);
-            outputEl.textContent = '❌ Error: ' + evt.error;
-            lockForm(false);
-            return;
-          }
-
-          if (evt.event === 'analysis_complete') {
-            showMeta(evt);
-            const providerLabel = evt.provider === 'gemini' ? 'Gemini' : 'Claude';
-            setStatus('active', `Generando con ${providerLabel} · ${evt.model || ''} (${evt.tables} tablas, ${evt.forms} formularios)…`);
-          } else if (evt.event === 'chunk') {
-            appendOutput(evt.text);
-          } else if (evt.event === 'done') {
-            stopTimer();
-            setStatus('done', `Documentación generada — ${generatedText.length.toLocaleString('es-AR')} caracteres`);
-            btnCopy.disabled = false;
-            lockForm(false);
-          }
-        }
-      }
-
     } catch (err) {
       stopTimer();
       setStatus('error', 'Error: ' + err.message);
       outputEl.textContent = generatedText || ('❌ ' + err.message);
-      lockForm(false);
+      lockAll(false);
     }
   });
 
-  // ── Analyze only ─────────────────────────────────────────────────────────
+  // ── Analyze only (system tab) ─────────────────────────────────────────
   btnAnalyze.addEventListener('click', async () => {
     const webUrl = $('web-url').value.trim();
     const dbConn = $('db-conn').value.trim();
+    if (!webUrl && !dbConn) { setStatus('error', 'Ingresá al menos una URL o un connection string.'); return; }
 
-    if (!webUrl && !dbConn) {
-      setStatus('error', 'Ingresá al menos una URL o un connection string.');
-      return;
-    }
-
-    lockForm(true);
+    lockAll(true);
     generatedText = '';
     placeholder.style.display = 'none';
     outputEl.style.display = 'block';
@@ -555,7 +697,6 @@
     metaDiv.style.display = 'none';
     startTimer();
     setStatus('active', 'Analizando…');
-
     const results = [];
 
     try {
@@ -567,33 +708,147 @@
         results.push('=== ANÁLISIS WEB ===\n' + JSON.stringify(d, null, 2));
         showMeta({ forms: d.forms?.length ?? 0 });
       }
-
       if (dbConn) {
         setStatus('active', 'Analizando base de datos…');
         const r = await fetch('/api/analyze/db?connection=' + encodeURIComponent(dbConn), { method: 'POST' });
         const d = await r.json();
         if (d.error) throw new Error(d.error);
         results.push('=== ESQUEMA DE BD ===\n' + JSON.stringify(d, null, 2));
-        const meta = metaPills.innerHTML ? {} : {};
         showMeta({ tables: d.tables?.length ?? 0 });
       }
-
       generatedText = results.join('\n\n');
       showOutput(generatedText);
       stopTimer();
       setStatus('done', 'Análisis completo');
       btnCopy.disabled = false;
-
     } catch (err) {
       stopTimer();
       setStatus('error', 'Error: ' + err.message);
       outputEl.textContent = '❌ ' + err.message;
     } finally {
-      lockForm(false);
+      lockAll(false);
     }
   });
 
-  // ── Copy ─────────────────────────────────────────────────────────────────
+  // ── Parse headers textarea → object ──────────────────────────────────
+  function parseHeaders(raw) {
+    const out = {};
+    raw.split('\n').forEach(line => {
+      const idx = line.indexOf(':');
+      if (idx > 0) {
+        const k = line.slice(0, idx).trim();
+        const v = line.slice(idx + 1).trim();
+        if (k) out[k] = v;
+      }
+    });
+    return out;
+  }
+
+  function parseQueryParams(raw) {
+    const out = {};
+    raw.split('&').forEach(part => {
+      const idx = part.indexOf('=');
+      if (idx > 0) {
+        out[decodeURIComponent(part.slice(0, idx).trim())] = decodeURIComponent(part.slice(idx + 1).trim());
+      }
+    });
+    return out;
+  }
+
+  function buildHttpRequestPayload() {
+    return {
+      method: $('req-method').value,
+      path: $('req-path').value.trim(),
+      body: $('req-body').value.trim(),
+      headers: parseHeaders($('req-headers').value),
+      query_params: parseQueryParams($('req-query').value),
+      content_type: 'application/json',
+    };
+  }
+
+  // ── Generate request implementation (SSE streaming) ──────────────────
+  btnReqGenerate.addEventListener('click', async () => {
+    const path   = $('req-path').value.trim();
+    const dbConn = $('req-db-conn').value.trim();
+    const extra  = $('req-extra').value.trim();
+    const provider = getReqProvider();
+
+    if (!path || !dbConn) { setStatus('error', 'Completá el path y el connection string.'); return; }
+
+    generatedText = '';
+    placeholder.style.display = 'none';
+    outputEl.style.display = 'block';
+    outputEl.textContent = '';
+    btnCopy.disabled = true;
+    metaDiv.style.display = 'none';
+    lockAll(true);
+    setStatus('active', 'Analizando request y base de datos…');
+    startTimer();
+
+    const bodyObj = {
+      http_request: buildHttpRequestPayload(),
+      db_connection: dbConn,
+      extra_context: extra,
+      provider,
+    };
+
+    try {
+      await consumeStream('/api/generate/request/stream', bodyObj, evt => {
+        const providerLabel = evt.provider === 'gemini' ? 'Gemini' : 'Claude';
+        setStatus('active', `Generando con ${providerLabel} · ${evt.model || ''} (${evt.impacted} tablas impactadas, ${evt.matched_columns} columnas mapeadas)…`);
+      });
+    } catch (err) {
+      stopTimer();
+      setStatus('error', 'Error: ' + err.message);
+      outputEl.textContent = generatedText || ('❌ ' + err.message);
+      lockAll(false);
+    }
+  });
+
+  // ── Analyze request impact only ───────────────────────────────────────
+  btnReqAnalyze.addEventListener('click', async () => {
+    const path   = $('req-path').value.trim();
+    const dbConn = $('req-db-conn').value.trim();
+    if (!path || !dbConn) { setStatus('error', 'Completá el path y el connection string.'); return; }
+
+    lockAll(true);
+    generatedText = '';
+    placeholder.style.display = 'none';
+    outputEl.style.display = 'block';
+    outputEl.textContent = '';
+    metaDiv.style.display = 'none';
+    startTimer();
+    setStatus('active', 'Analizando impacto en BD…');
+
+    try {
+      const res = await fetch('/api/analyze/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          http_request: buildHttpRequestPayload(),
+          db_connection: dbConn,
+          provider: getReqProvider(),
+        }),
+      });
+      const d = await res.json();
+      if (d.error) throw new Error(d.error);
+
+      showMeta({ impacted: d.impacted_tables?.length ?? 0, matched_columns: d.matched_columns?.length ?? 0 });
+      generatedText = '=== ANÁLISIS DE IMPACTO DEL REQUEST ===\n' + JSON.stringify(d, null, 2);
+      showOutput(generatedText);
+      stopTimer();
+      setStatus('done', 'Análisis de impacto completo');
+      btnCopy.disabled = false;
+    } catch (err) {
+      stopTimer();
+      setStatus('error', 'Error: ' + err.message);
+      outputEl.textContent = '❌ ' + err.message;
+    } finally {
+      lockAll(false);
+    }
+  });
+
+  // ── Copy ─────────────────────────────────────────────────────────────
   btnCopy.addEventListener('click', async () => {
     if (!generatedText) return;
     try {

@@ -8,6 +8,9 @@ from .schemas import (
     WebInterfaceAnalysis,
     GenerationRequest,
     GenerationResult,
+    HttpRequestInput,
+    RequestAnalysisResult,
+    RequestGenerationRequest,
 )
 
 __all__ = [
@@ -20,4 +23,7 @@ __all__ = [
     "WebInterfaceAnalysis",
     "GenerationRequest",
     "GenerationResult",
+    "HttpRequestInput",
+    "RequestAnalysisResult",
+    "RequestGenerationRequest",
 ]

@@ -73,3 +73,29 @@ class GenerationResult(BaseModel):
     db_schema: DatabaseSchema
     model_used: str
     tokens_used: int = 0
+
+
+class HttpRequestInput(BaseModel):
+    method: str = Field(default="POST", description="Método HTTP: GET, POST, PUT, PATCH, DELETE")
+    path: str = Field(..., description="Path del endpoint, ej: /api/users o URL completa")
+    headers: dict[str, str] = Field(default_factory=dict, description="Headers del request")
+    query_params: dict[str, str] = Field(default_factory=dict, description="Query parameters")
+    body: str = Field(default="", description="Body del request en JSON o form-encoded")
+    content_type: str = Field(default="application/json", description="Content-Type del body")
+
+
+class RequestAnalysisResult(BaseModel):
+    method: str
+    path: str
+    body_fields: list[str]
+    impacted_tables: list[str]
+    matched_columns: list[dict[str, str]]
+    suggested_operation: str
+
+
+class RequestGenerationRequest(BaseModel):
+    http_request: HttpRequestInput
+    db_connection: str = Field(..., description="Connection string de la base de datos")
+    provider: str = Field(default="anthropic", description="Proveedor: anthropic o gemini")
+    model: str | None = Field(default=None)
+    extra_context: str = Field(default="")
